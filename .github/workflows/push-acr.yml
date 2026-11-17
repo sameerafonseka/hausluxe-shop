@@ -1,0 +1,96 @@
+name: Build and push to Azure Container Registry
+
+on:
+  push:
+    branches:
+      - '**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: push-acr-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  REGISTRY: sfonseka.azurecr.io
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  build-and-push:
+    name: Build and push Linux image
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Calculate semantic version
+        id: semver
+        uses: paulhatch/semantic-version@v6
+        with:
+          tag_prefix: "v"
+          major_pattern: "/!:|BREAKING CHANGE:/"
+          minor_pattern: "/feat(\\(.+\\))?:|^Added\\b|^Add\\b|^Feature\\b|^New\\b/"
+          minor_regexp_flags: "i"
+          search_commit_body: true
+          version_format: "${major}.${minor}.${patch}"
+
+      - name: Add branch prerelease suffix
+        id: version
+        shell: bash
+        env:
+          BASE_VERSION: ${{ steps.semver.outputs.version }}
+        run: |
+          if [[ "$GITHUB_REF_NAME" == "main" ]]; then
+            version="$BASE_VERSION"
+          else
+            branch="${GITHUB_REF_NAME,,}"
+            branch="$(sed -E 's/[^a-z0-9-]+/-/g; s/-+/-/g; s/^-//; s/-$//' <<< "$branch")"
+            if [[ "$branch" =~ ^[0-9]+$ ]]; then
+              branch="branch-$branch"
+            fi
+            version="${BASE_VERSION}-${branch}"
+          fi
+          echo "image_version=$version" >> "$GITHUB_OUTPUT"
+          echo "Image version: $version"
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.x
+
+      - name: Build
+        run: dotnet build Smartstore.sln -c Release
+
+      - name: Publish
+        run: dotnet publish src/Smartstore.Web/Smartstore.Web.csproj -c Release -o ./.build/release --no-restore --no-build --no-self-contained
+
+      - name: Sign in to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Sign in to Azure Container Registry
+        run: az acr login --name sfonseka
+
+      - name: Build and push versioned image
+        env:
+          IMAGE_VERSION: ${{ steps.version.outputs.image_version }}
+        run: |
+          docker build --build-arg SOURCE=./.build/release -f NoBuild.Dockerfile -t ${{ env.REGISTRY }}/hausluxe-shop-linux:${IMAGE_VERSION} -t ${{ env.REGISTRY }}/hausluxe-shop-linux:sha-${{ github.sha }} .
+          docker push ${{ env.REGISTRY }}/hausluxe-shop-linux:${IMAGE_VERSION}
+          docker push ${{ env.REGISTRY }}/hausluxe-shop-linux:sha-${{ github.sha }}
+
+      - name: Tag and push latest image
+        if: github.ref == 'refs/heads/main'
+        run: |
+          docker tag ${{ env.REGISTRY }}/hausluxe-shop-linux:sha-${{ github.sha }} ${{ env.REGISTRY }}/hausluxe-shop-linux:latest
+          docker push ${{ env.REGISTRY }}/hausluxe-shop-linux:latest
