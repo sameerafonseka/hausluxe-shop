@@ -120,6 +120,8 @@ app.Lifetime.ApplicationStarted.Register(() =>
 // Initialize databases
 await InitializeDatabases();
 
+app.MapGet("/healthz", () => Results.Ok("Healthy"));
+
 // Configure application
 engineStarter.ConfigureApplication(app);
 
