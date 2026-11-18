@@ -33,8 +33,8 @@ jobs:
 
       - name: docker tag alpine
         run: |
-          docker tag alpine:3.24.4 sfonseka.azurecr.io\alpine:3.24.4
+          docker tag alpine:3.24.4 sfonseka.azurecr.io/alpine:3.24.4
 
       - name: docker push alpine
         run: |
-          docker push sfonseka.azurecr.io\alpine:3.24.4
+          docker push sfonseka.azurecr.io/alpine:3.24.4
