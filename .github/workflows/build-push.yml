@@ -1,9 +1,6 @@
 name: Build and push to Azure Container Registry
 
 on:
-  push:
-    branches:
-      - '**'
   workflow_dispatch:
 
 permissions:
@@ -85,12 +82,11 @@ jobs:
         env:
           IMAGE_VERSION: ${{ steps.version.outputs.image_version }}
         run: |
-          docker build --build-arg SOURCE=./.build/release -f NoBuild.Dockerfile -t ${{ env.REGISTRY }}/hausluxe-shop-linux:${IMAGE_VERSION} -t ${{ env.REGISTRY }}/hausluxe-shop-linux:sha-${{ github.sha }} .
-          docker push ${{ env.REGISTRY }}/hausluxe-shop-linux:${IMAGE_VERSION}
-          docker push ${{ env.REGISTRY }}/hausluxe-shop-linux:sha-${{ github.sha }}
+          docker build --build-arg SOURCE=./.build/release -f NoBuild.Dockerfile -t ${{ env.REGISTRY }}/hausluxe:${IMAGE_VERSION} .
+          docker push ${{ env.REGISTRY }}/hausluxe:${IMAGE_VERSION}
 
       - name: Tag and push latest image
         if: github.ref == 'refs/heads/main'
         run: |
-          docker tag ${{ env.REGISTRY }}/hausluxe-shop-linux:sha-${{ github.sha }} ${{ env.REGISTRY }}/hausluxe-shop-linux:latest
-          docker push ${{ env.REGISTRY }}/hausluxe-shop-linux:latest
+          docker tag ${{ env.REGISTRY }}/hausluxe:${IMAGE_VERSION} ${{ env.REGISTRY }}/hausluxe:latest
+          docker push ${{ env.REGISTRY }}/hausluxe:latest

@@ -20,4 +20,12 @@
 		<PackageDownload Include="GitVersion.Tool" Version="[6.7.0]" />
 	</ItemGroup>
 
+	<ItemGroup>
+	  <None Remove="..\..\..\.github\workflows\push-acr.yml" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <None Remove="..\..\..\.github\workflows\push-acr.yml" />
+	</ItemGroup>
+
 </Project>
