@@ -55,6 +55,7 @@ jobs:
             version="${BASE_VERSION}-${branch}"
           fi
           echo "image_version=$version" >> "$GITHUB_OUTPUT"
+          echo "IMAGE_VERSION=$version" >> "$GITHUB_ENV"
           echo "Image version: $version"
 
       - name: Set up .NET
@@ -79,8 +80,6 @@ jobs:
         run: az acr login --name sfonseka
 
       - name: Build and push versioned image
-        env:
-          IMAGE_VERSION: ${{ steps.version.outputs.image_version }}
         run: |
           docker build --build-arg SOURCE=./.build/release -f NoBuild.Dockerfile -t ${{ env.REGISTRY }}/hausluxe:${IMAGE_VERSION} .
           docker push ${{ env.REGISTRY }}/hausluxe:${IMAGE_VERSION}
